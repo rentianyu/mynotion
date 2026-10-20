@@ -1,0 +1,260 @@
+/* ── Notion 设计 token ───────────────────────────────── */
+:root {
+  --bg-canvas: #ffffff;
+  --bg-sidebar: #f7f6f3;
+  --bg-hover: rgba(55, 53, 47, 0.04);
+  --bg-active: rgba(55, 53, 47, 0.08);
+  --bg-subtle: #f1f1ef;
+  --bg-menu: #ffffff;
+
+  --ink: #37352f;
+  --ink-2: rgba(55, 53, 47, 0.65);
+  --ink-3: rgba(55, 53, 47, 0.45);
+
+  --border: rgba(55, 53, 47, 0.09);
+  --border-strong: rgba(55, 53, 47, 0.16);
+
+  --accent: #2383e2;
+  --accent-hover: #1a72c9;
+  --danger: #eb5757;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --shadow-menu: 0 2px 12px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-pop: rgba(15, 15, 15, 0.2) 0 0 0 1px, rgba(15, 15, 15, 0.05) 0 3px 6px, rgba(15, 15, 15, 0.1) 0 9px 24px;
+
+  --font-ui: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
+    "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(35, 131, 226, 0.22);
+}
+
+/* Notion 式极细滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(55, 53, 47, 0.2) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(55, 53, 47, 0.18);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(55, 53, 47, 0.32);
+  background-clip: content-box;
+}
+
+/* ── 复用交互态（内联样式无法表达 :hover）──────────────── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.08s ease;
+}
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+.nav-item.active {
+  background: var(--bg-active);
+  color: var(--ink);
+  font-weight: 500;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 4px;
+  transition: background 0.08s ease, color 0.08s ease;
+}
+.icon-btn:hover {
+  background: var(--bg-active);
+  color: var(--ink);
+}
+.text-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+}
+.text-btn:hover {
+  background: var(--bg-hover);
+  color: var(--ink-2);
+}
+.side-section-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  margin: 14px 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  text-transform: none;
+}
+
+/* 树行：hover 才显现拖拽手柄与新建按钮（Notion 式） */
+.tree-row .tree-grip,
+.tree-row .tree-add {
+  transition: opacity 0.1s ease;
+}
+.tree-row:hover .tree-grip,
+.tree-row:hover .tree-add {
+  opacity: 1 !important;
+}
+
+/* 页面头部：hover 才显现弱操作（添加图标/封面、收藏/删除），贴近 Notion 的克制 */
+.page-header .hover-only {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.page-header:hover .hover-only {
+  opacity: 1;
+}
+
+/* ── BlockNote 对齐 Notion ───────────────────────────── */
+.bn-editor {
+  font-family: var(--font-ui);
+  padding-inline: 0;
+}
+.bn-editor .bn-block-group {
+  --bn-colors-editor-text: var(--ink);
+}
+.bn-block-content {
+  color: var(--ink);
+}
+/* 自定义块（数据库/子页面）选中时去掉 BlockNote 的蓝色高亮描边（::after 覆盖层）。 */
+.bn-block-content[data-content-type="database"] > *::after,
+.bn-block-content[data-content-type="subpage"] > *::after {
+  display: none !important;
+}
+
+/* ── 数据库表格：对齐 Notion ─────────────────────────── */
+.db-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  background: var(--bg-canvas);
+}
+.db-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.08s ease;
+}
+.db-toolbar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+.db-th {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px 10px;
+  border-right: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  font-weight: 400;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.db-row {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.08s ease;
+}
+.db-row:hover {
+  background: var(--bg-hover);
+}
+.db-cell {
+  display: block;
+  padding: 0;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.db-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.db-resize:hover {
+  background: rgba(35, 131, 226, 0.35);
+}
+/* 删除按钮：仅行 hover 时显现 */
+.db-del {  opacity: 0;
+  color: var(--ink-3);
+  transition: opacity 0.1s ease;
+}
+.db-row:hover .db-del {
+  opacity: 1;
+}
+.db-del:hover {
+  color: var(--danger);
+}
+.menu-item {
+  transition: background 0.08s ease;
+}
+.menu-item:hover {
+  background: var(--bg-hover);
+}

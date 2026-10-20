@@ -1,0 +1,21 @@
+{
+  "name": "@mynotion/server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/index.ts",
+    "start": "node --disable-warning=ExperimentalWarning src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mynotion/shared": "workspace:*",
+    "hono": "4.13.13",
+    "@hono/node-server": "2.1.5",
+    "fractional-indexing": "4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "6.0.3"
+  }
+}

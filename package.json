@@ -1,0 +1,21 @@
+{
+  "name": "mynotion",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "start": "node --disable-warning=ExperimentalWarning apps/server/src/index.ts",
+    "serve": "pnpm build && pnpm start",
+    "backup": "node --disable-warning=ExperimentalWarning scripts/backup.mjs",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "@types/node": "24.19.2"
+  }
+}
