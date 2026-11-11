@@ -2,6 +2,7 @@ import { getDefaultReactSlashMenuItems } from "@blocknote/react";
 import type { DefaultReactSuggestionItem } from "@blocknote/react";
 import { api } from "../../api/client.ts";
 import { uuidv7 } from "../../lib/uuid.ts";
+import { queryClient } from "../../lib/queryClient.ts";
 import type { AppBlockNoteEditor } from "../../blocks/schema.ts";
 
 /** 在默认 slash 项基础上追加「子页面」「数据库」；按 query 过滤标题与别名。 */
@@ -15,6 +16,8 @@ export function getAppSlashItems(editor: AppBlockNoteEditor, pageId: string) {
     onItemClick: () => {
       const newId = uuidv7();
       void api.createPage({ id: newId, parentId: pageId, title: "" }).then(() => {
+        // 树查询是 staleTime: Infinity，不主动失效就只有在别处触发刷新时才看得见
+        queryClient.invalidateQueries({ queryKey: ["tree"] });
         editor.insertBlocks([{ type: "subpage", props: { pageId: newId } }], editor.getTextCursorPosition().block, "after");
       });
     },

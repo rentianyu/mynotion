@@ -29,21 +29,24 @@ pagesRoute.patch("/pages/:id/reparent", async (c) => {
 
 pagesRoute.delete("/pages/:id", (c) => {
   const id = c.req.param("id");
-  tx(() => softDeletePageTree(id));
-  return c.json({ ok: true });
+  const hosts = tx(() => softDeletePageTree(id));
+  return c.json({ ok: true, hostPageIds: hosts });
 });
 
 pagesRoute.post("/pages/:id/restore", (c) => {
   const id = c.req.param("id");
-  tx(() => restorePageTree(id));
-  return c.json(getPageMeta(id));
+  const hosts = tx(() => restorePageTree(id));
+  const page = getPageMeta(id);
+  if (!page) return c.json({ error: { code: 404, message: "page not found" } }, 404);
+  return c.json({ page, hostPageIds: hosts });
 });
 
 pagesRoute.get("/pages/:id/document", (c) => {
   const id = c.req.param("id");
   const page = getPageMeta(id);
   if (!page) return c.json({ error: { code: 404, message: "page not found" } }, 404);
-  return c.json({ page, blocks: getDocumentBlocks(id) });
+  const { blocks, keys } = getDocumentBlocks(id);
+  return c.json({ page, blocks, keys });
 });
 
 pagesRoute.put("/pages/:id/blocks", async (c) => {

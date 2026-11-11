@@ -57,10 +57,10 @@ export const api = {
       body: JSON.stringify({ parentId, sortKey }),
     });
   },
-  deletePage(id: string): Promise<{ ok: true }> {
+  deletePage(id: string): Promise<{ ok: true; hostPageIds: string[] }> {
     return req(`/pages/${id}`, { method: "DELETE" });
   },
-  restorePage(id: string): Promise<PageMeta> {
+  restorePage(id: string): Promise<{ page: PageMeta; hostPageIds: string[] }> {
     return req(`/pages/${id}/restore`, { method: "POST" });
   },
   listTrash(): Promise<PageMeta[]> {
@@ -72,7 +72,7 @@ export const api = {
   hardDelete(id: string): Promise<{ ok: true }> {
     return req(`/trash/${id}`, { method: "DELETE" });
   },
-  restoreFromTrash(id: string): Promise<{ ok: true }> {
+  restoreFromTrash(id: string): Promise<{ ok: true; hostPageIds: string[] }> {
     return req(`/trash/${id}/restore`, { method: "POST" });
   },
   createDatabase(input: {
@@ -87,6 +87,9 @@ export const api = {
   getDatabase(id: string): Promise<DatabaseBundle> {
     return req(`/databases/${id}`);
   },
+  patchDatabase(id: string, patch: { title?: string }): Promise<Database> {
+    return req(`/databases/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+  },
   patchSchema(id: string, schema: PropDef[]): Promise<Database> {
     return req(`/databases/${id}/schema`, { method: "PATCH", body: JSON.stringify({ schema }) });
   },
@@ -98,6 +101,9 @@ export const api = {
   },
   deleteRow(rowId: string): Promise<{ ok: true }> {
     return req(`/rows/${rowId}`, { method: "DELETE" });
+  },
+  restoreRow(rowId: string): Promise<PageMeta> {
+    return req(`/rows/${rowId}/restore`, { method: "POST" });
   },
   createView(dbId: string, input: { name?: string; type?: ViewType }): Promise<View> {
     return req(`/databases/${dbId}/views`, { method: "POST", body: JSON.stringify(input) });

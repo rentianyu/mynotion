@@ -60,12 +60,20 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
   );
 }
 
-export function EditorHost({ page, initialBlocks }: { page: PageMeta; initialBlocks: unknown[] }) {
+export function EditorHost({
+  page,
+  initialBlocks,
+  initialKeys,
+}: {
+  page: PageMeta;
+  initialBlocks: unknown[];
+  initialKeys: Record<string, string>;
+}) {
   const editor = useCreateBlockNote({
     schema: appSchema,
     initialContent: (initialBlocks.length ? initialBlocks : [{ type: "paragraph" }]) as never,
   });
-  const status = useDocumentAutosave(editor, page.id);
+  const status = useDocumentAutosave(editor, page.id, initialKeys);
   return (
     <div style={{ position: "relative" }}>
       <SaveIndicator status={status} />

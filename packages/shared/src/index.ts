@@ -128,6 +128,8 @@ export type DocumentResponse = {
   page: PageMeta;
   /** BlockNote 原生 Block 形状，服务端已按 sortKey 组树，前端可直接喂给 initialContent。 */
   blocks: unknown[];
+  /** blockId → 库里的 sort_key。前端据此播种，避免重新编号撞上未改动块的旧键。 */
+  keys: Record<string, string>;
 };
 
 /** `PUT /api/pages/:id/blocks` 的请求体。 */

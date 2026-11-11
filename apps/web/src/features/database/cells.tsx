@@ -214,23 +214,62 @@ function TextEditor({
   };
 
   useEffect(() => {
-    const el = document.getElementById("cell-input-" + row.id + "-" + prop.id) as HTMLInputElement | null;
+    const el = document.getElementById("cell-input-" + row.id + "-" + prop.id) as HTMLElement | null;
     el?.focus();
   }, [row.id, prop.id]);
 
+  // number/date 用原生 input（有原生选择器），其余用 textarea 以支持自动换行 + 随内容长高。
+  const nativeType = prop.type === "number" ? "number" : prop.type === "date" ? "date" : null;
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [val]);
+
+  const commonStyle: React.CSSProperties = {
+    width: "100%",
+    fontSize: 14,
+    border: "none",
+    outline: "2px solid var(--accent)",
+    padding: 2,
+    borderRadius: "var(--radius-sm)",
+    fontFamily: "inherit",
+    color: "var(--ink)",
+    background: "var(--bg-canvas)",
+  };
+  const keys = {
+    onBlur: submit,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      e.stopPropagation();
+      if (e.key === "Escape" && !e.nativeEvent.isComposing) onDone();
+      // Enter 提交；Shift+Enter 换行（textarea 默认行为放行）。
+      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) submit();
+    },
+  };
+
+  if (nativeType) {
+    return (
+      <input
+        id={"cell-input-" + row.id + "-" + prop.id}
+        type={nativeType}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        {...keys}
+        style={commonStyle}
+      />
+    );
+  }
   return (
-    <input
+    <textarea
       id={"cell-input-" + row.id + "-" + prop.id}
-      type={prop.type === "number" ? "number" : prop.type === "date" ? "date" : "text"}
+      ref={areaRef}
+      rows={1}
       value={val}
       onChange={(e) => setVal(e.target.value)}
-      onBlur={submit}
-      onKeyDown={(e) => {
-        e.stopPropagation();
-        if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
-        if (e.key === "Escape" && !e.nativeEvent.isComposing) onDone();
-      }}
-      style={{ width: "100%", fontSize: 14, border: "none", outline: "2px solid var(--accent)", padding: 2, borderRadius: "var(--radius-sm)", fontFamily: "inherit", color: "var(--ink)" }}
+      {...keys}
+      style={{ ...commonStyle, resize: "none", overflow: "hidden", display: "block", lineHeight: "1.5", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
     />
   );
 }

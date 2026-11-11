@@ -114,8 +114,26 @@ export function listTree(): PageMeta[] {
   return rows.map(toMeta);
 }
 
-/** 软删一个页面及其子树（递归 CTE）。blocks 保存管线的级联也复用此函数。 */
-export function softDeletePageTree(pageId: string, now = Date.now()): void {
+/** 子树（含已软删的后代）的全部页 id。 */
+function subtreeIds(pageId: string): string[] {
+  return all<{ id: string }>(
+    `WITH RECURSIVE subtree(id) AS (
+       SELECT ?1
+       UNION ALL
+       SELECT p.id FROM pages p JOIN subtree s ON p.parent_id = s.id
+     ) SELECT id FROM subtree`,
+    pageId,
+  ).map((r) => r.id);
+}
+
+/**
+ * 软删一个页面及其子树（递归 CTE），并摘掉父页正文里指向子树任意页的 subpage 芯片。
+ * 芯片存进 detached_subpage_blocks，恢复时放回原位。返回被摘芯片的宿主页 id。
+ * blocks 保存管线的级联也复用此函数。
+ */
+export function softDeletePageTree(pageId: string, now = Date.now()): string[] {
+  const ids = subtreeIds(pageId);
+  const hosts = detachSubpageChips(ids, now);
   run(
     `WITH RECURSIVE subtree(id) AS (
        SELECT ?1
@@ -126,10 +144,42 @@ export function softDeletePageTree(pageId: string, now = Date.now()): void {
     pageId,
     now,
   );
+  return hosts;
 }
 
-/** 恢复页面及其被级联软删的子树。 */
-export function restorePageTree(pageId: string): void {
+function detachSubpageChips(pageIds: string[], now: number): string[] {
+  const hosts: string[] = [];
+  for (const refId of pageIds) {
+    const chips = all<{ id: string; page_id: string; parent_id: string; props: string; content: string; sort_key: string; created_at: number }>(
+      "SELECT id,page_id,parent_id,props,content,sort_key,created_at FROM blocks WHERE type = 'subpage' AND JSON_EXTRACT(props, '$.pageId') = ?1",
+      refId,
+    );
+    for (const chip of chips) {
+      run(
+        `INSERT OR REPLACE INTO detached_subpage_blocks
+         (block_id, host_page_id, parent_id, ref_page_id, props, content, sort_key, created_at, detached_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)`,
+        chip.id,
+        chip.page_id,
+        chip.parent_id,
+        refId,
+        chip.props,
+        chip.content,
+        chip.sort_key,
+        chip.created_at,
+        now,
+      );
+      run("DELETE FROM blocks WHERE id = ?1", chip.id);
+      run("DELETE FROM search_fts WHERE entity_type = 'block' AND entity_id = ?1", chip.id);
+      if (!hosts.includes(chip.page_id)) hosts.push(chip.page_id);
+    }
+  }
+  return hosts;
+}
+
+/** 恢复页面及其被级联软删的子树，并把当初摘掉的 subpage 芯片放回原位。返回芯片所在宿主页 id。 */
+export function restorePageTree(pageId: string): string[] {
+  const ids = subtreeIds(pageId);
   run(
     `WITH RECURSIVE subtree(id) AS (
        SELECT ?1
@@ -139,14 +189,58 @@ export function restorePageTree(pageId: string): void {
      UPDATE pages SET deleted_at = NULL WHERE id IN (SELECT id FROM subtree)`,
     pageId,
   );
+  const hosts: string[] = [];
+  for (const refId of ids) {
+    const saved = all<{
+      block_id: string;
+      host_page_id: string;
+      parent_id: string;
+      props: string;
+      content: string;
+      sort_key: string;
+      created_at: number;
+    }>("SELECT * FROM detached_subpage_blocks WHERE ref_page_id = ?1", refId);
+    for (const b of saved) {
+      // 宿主页自己也被删了就没有放回的载体；留着记录等宿主页恢复
+      if (all<{ n: number }>("SELECT count(*) n FROM pages WHERE id = ?1 AND deleted_at IS NULL", b.host_page_id)[0]!.n === 0) continue;
+      // 用户可能已经手工重新插入过同一页的芯片，别再复制一份
+      const dup = all<{ n: number }>(
+        "SELECT count(*) n FROM blocks WHERE type = 'subpage' AND JSON_EXTRACT(props, '$.pageId') = ?1",
+        refId,
+      )[0]!.n;
+      if (dup > 0) {
+        run("DELETE FROM detached_subpage_blocks WHERE block_id = ?1", b.block_id);
+        continue;
+      }
+      run(
+        `INSERT OR IGNORE INTO blocks (id,page_id,parent_id,type,props,content,sort_key,created_at,updated_at)
+         VALUES (?1,?2,?3,'subpage',?4,?5,?6,?7,?8)`,
+        b.block_id,
+        b.host_page_id,
+        b.parent_id,
+        b.props,
+        b.content,
+        b.sort_key,
+        b.created_at,
+        Date.now(),
+      );
+      run("DELETE FROM detached_subpage_blocks WHERE block_id = ?1", b.block_id);
+      if (!hosts.includes(b.host_page_id)) hosts.push(b.host_page_id);
+    }
+  }
+  return hosts;
 }
 
-/** 回收站顶层项：已软删且其父未删（或无父）的页，避免子树重复列出。 */
+/** 回收站顶层项：已软删且其父未删（或无父）的页；另加仍存活库的行（库被删时跟库走，不单列）。 */
 export function listTrash(): PageMeta[] {
   const rows = all<PageRow>(
     `SELECT * FROM pages
-     WHERE deleted_at IS NOT NULL AND database_id IS NULL
-       AND (parent_id IS NULL OR parent_id NOT IN (SELECT id FROM pages WHERE deleted_at IS NOT NULL))
+     WHERE deleted_at IS NOT NULL
+       AND (
+         (database_id IS NULL
+           AND (parent_id IS NULL OR parent_id NOT IN (SELECT id FROM pages WHERE deleted_at IS NOT NULL)))
+         OR (database_id IS NOT NULL AND database_id IN (SELECT id FROM databases WHERE deleted_at IS NULL))
+       )
      ORDER BY deleted_at DESC`,
   );
   return rows.map(toMeta);
@@ -154,18 +248,13 @@ export function listTrash(): PageMeta[] {
 
 /** 彻底删除：物理删页及其所有后代（含 blocks 靠 FK 级联）。 */
 export function hardDeletePageTree(pageId: string): void {
-  const ids = all<{ id: string }>(
-    `WITH RECURSIVE subtree(id) AS (
-       SELECT ?1
-       UNION ALL
-       SELECT p.id FROM pages p JOIN subtree s ON p.parent_id = s.id
-     ) SELECT id FROM subtree`,
-    pageId,
-  );
-  for (const row of ids) {
+  const ids = subtreeIds(pageId);
+  for (const id of ids) {
+    // 页都物理删了，摘在外的芯片既不可能恢复也无从挂回
+    run("DELETE FROM detached_subpage_blocks WHERE ref_page_id = ?1 OR host_page_id = ?1", id);
     // 先清 FTS（无 FK 约束到 pages），blocks 由 FK CASCADE 处理
-    run("DELETE FROM search_fts WHERE page_id = ?1", row.id);
-    run("DELETE FROM pages WHERE id = ?1", row.id);
+    run("DELETE FROM search_fts WHERE page_id = ?1", id);
+    run("DELETE FROM pages WHERE id = ?1", id);
   }
 }
 

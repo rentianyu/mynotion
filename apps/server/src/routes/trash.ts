@@ -14,6 +14,6 @@ trashRoute.delete("/trash/:id", (c) => {
 
 trashRoute.post("/trash/:id/restore", (c) => {
   const id = c.req.param("id");
-  tx(() => restorePageTree(id));
-  return c.json({ ok: true });
+  const hostPageIds = tx(() => restorePageTree(id));
+  return c.json({ ok: true, hostPageIds });
 });

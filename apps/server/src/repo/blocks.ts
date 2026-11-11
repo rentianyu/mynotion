@@ -22,11 +22,13 @@ type OutBlock = {
 };
 
 /** 一次读全页 block，内存按 parent_id 分组、组内按 sort_key 字符串排序，从哨兵（page_id）递归拼装。 */
-export function getDocumentBlocks(pageId: string): OutBlock[] {
+export function getDocumentBlocks(pageId: string): { blocks: OutBlock[]; keys: Record<string, string> } {
   const rows = all<BlockDbRow>(
-    "SELECT id,page_id,parent_id,type,props,content,sort_key FROM blocks WHERE page_id = ?1 ORDER BY sort_key",
+    "SELECT id,page_id,parent_id,type,props,content,sort_key FROM blocks WHERE page_id = ?1 ORDER BY sort_key, rowid",
     pageId,
   );
+  const keys: Record<string, string> = {};
+  for (const r of rows) keys[r.id] = r.sort_key;
   const byParent = new Map<string, BlockDbRow[]>();
   for (const r of rows) {
     const list = byParent.get(r.parent_id);
@@ -48,7 +50,7 @@ export function getDocumentBlocks(pageId: string): OutBlock[] {
       return block;
     });
 
-  return build(pageId);
+  return { blocks: build(pageId), keys };
 }
 
 function syncBlockFts(row: BlockRow, pageId: string): void {

@@ -117,6 +117,16 @@ export function getDatabaseBundle(dbId: string): DatabaseBundle | undefined {
   return { database: toDatabase(r), views: listViews(dbId), rows: listRows(dbId) };
 }
 
+/** 改库元信息（目前仅库名）。 */
+export function updateDatabase(dbId: string, patch: { title?: string }): Database | undefined {
+  const cur = get<DbRow>("SELECT * FROM databases WHERE id = ?1 AND deleted_at IS NULL", dbId);
+  if (!cur) return undefined;
+  if (patch.title !== undefined) {
+    run("UPDATE databases SET title = ?1, updated_at = ?2 WHERE id = ?3", patch.title, Date.now(), dbId);
+  }
+  return toDatabase(get<DbRow>("SELECT * FROM databases WHERE id = ?1", dbId)!);
+}
+
 /**
  * 整体替换 schema。删属性/选项后清理行值中的孤儿 id：
  * 属性被删 → 丢对应值；select/multi_select 选项被删 → 丢指向已删选项的值。
@@ -228,6 +238,14 @@ export function updateRow(rowId: string, patch: RowPatch): ReturnType<typeof toM
 
 export function softDeleteRow(rowId: string): void {
   run("UPDATE pages SET deleted_at = ?2 WHERE id = ?1", rowId, Date.now());
+}
+
+/** 恢复被软删的库行（撤销删除）。 */
+export function restoreRow(rowId: string): ReturnType<typeof toMeta> | undefined {
+  const row = get<{ database_id: string | null }>("SELECT database_id FROM pages WHERE id = ?1", rowId);
+  if (!row || row.database_id === null) return undefined;
+  run("UPDATE pages SET deleted_at = NULL WHERE id = ?1", rowId);
+  return getPageMeta(rowId);
 }
 
 export function createView(dbId: string, input: { name?: string; type?: ViewType } = {}): View {

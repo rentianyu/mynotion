@@ -7,9 +7,11 @@ import {
   createRow,
   updateRow,
   softDeleteRow,
+  restoreRow,
   createView,
   updateView,
   deleteView,
+  updateDatabase,
 } from "../repo/databases.ts";
 
 export const databasesRoute = new Hono();
@@ -38,6 +40,13 @@ databasesRoute.patch("/databases/:id/schema", async (c) => {
   return c.json(updateSchema(id, schema));
 });
 
+databasesRoute.patch("/databases/:id", async (c) => {
+  const patch = (await c.req.json()) as { title?: string };
+  const db = updateDatabase(c.req.param("id"), patch);
+  if (!db) return c.json({ error: { code: 404, message: "database not found" } }, 404);
+  return c.json(db);
+});
+
 databasesRoute.post("/databases/:id/rows", async (c) => {
   const id = c.req.param("id");
   const body = (await c.req.json()) as { id?: string; title?: string; values?: Record<string, PropertyValue> };
@@ -53,6 +62,12 @@ databasesRoute.patch("/rows/:rowId", async (c) => {
 databasesRoute.delete("/rows/:rowId", (c) => {
   softDeleteRow(c.req.param("rowId"));
   return c.json({ ok: true });
+});
+
+databasesRoute.post("/rows/:rowId/restore", (c) => {
+  const row = restoreRow(c.req.param("rowId"));
+  if (!row) return c.json({ error: { code: 404, message: "row not found" } }, 404);
+  return c.json(row);
 });
 
 databasesRoute.post("/databases/:id/views", async (c) => {

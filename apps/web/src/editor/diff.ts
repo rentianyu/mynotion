@@ -19,15 +19,18 @@ export type BnChange = {
 };
 
 /**
- * 客户端为每个块维护的 sort_key（服务端不下发；加载文档时按顺序播种）。
- * keyless 邻居用 generateNKeysBetween 局部补齐——只在插入/移动触发，非全量展平。
+ * 客户端为每个块维护的 sort_key（加载文档时用服务端下发的键播种）。
+ * 缺键或库里键序被打乱时用 generateKeyBetween 往后补，保证同组内严格递增——
+ * 否则改过的块写回会撞上未改动块保留的旧键，块顺序就会漂（数据库块漂到页尾）。
  */
-export function seedKeys(document: BnBlock[]): Map<string, string> {
+export function seedKeys(document: BnBlock[], provided: Record<string, string> = {}): Map<string, string> {
   const keys = new Map<string, string>();
   const assign = (siblings: BnBlock[]): void => {
     let prev: string | null = null;
     for (const b of siblings) {
-      const k = generateKeyBetween(prev, null);
+      const given = provided[b.id];
+      const useGiven = given !== undefined && (prev === null || given > prev);
+      const k: string = useGiven ? given! : generateKeyBetween(prev, null);
       keys.set(b.id, k);
       prev = k;
     }

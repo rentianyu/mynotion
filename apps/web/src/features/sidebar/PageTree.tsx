@@ -14,13 +14,27 @@ import { useNavigate, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client.ts";
 import { uuidv7 } from "../../lib/uuid.ts";
+import { useTreeStore } from "../../lib/uiStore.ts";
+import { reloadHostDocs } from "../../lib/reloadHostDocs.ts";
 import { Icon } from "../../ui/Icon.tsx";
 import type { PageMeta } from "@mynotion/shared";
 
-type Node = { id: string; title: string; icon: string | null; depth: number; parentId: string | null; sortKey: string };
+type Node = {
+  id: string;
+  title: string;
+  icon: string | null;
+  depth: number;
+  parentId: string | null;
+  sortKey: string;
+  hasKids: boolean;
+  collapsed: boolean;
+};
 
-/** DFS 展平：按 parentId 分组、组内按 sort_key，深度即缩进。 */
-function buildFlat(pages: PageMeta[]): Node[] {
+/**
+ * DFS 展平：按 parentId 分组、组内按 sort_key，深度即缩进。
+ * collapsed 里的页仍占一行，但其整棵子树不进 visible（拖拽排序要用完整 all）。
+ */
+function buildFlat(pages: PageMeta[], collapsed: Record<string, boolean>): { all: Node[]; visible: Node[] } {
   const byParent = new Map<string | null, PageMeta[]>();
   for (const p of pages) {
     const list = byParent.get(p.parentId);
@@ -28,15 +42,29 @@ function buildFlat(pages: PageMeta[]): Node[] {
     else byParent.set(p.parentId, [p]);
   }
   for (const list of byParent.values()) list.sort((a, b) => (a.sortKey < b.sortKey ? -1 : 1));
-  const out: Node[] = [];
-  const walk = (parent: string | null, depth: number): void => {
+  const all: Node[] = [];
+  const visible: Node[] = [];
+  const walk = (parent: string | null, depth: number, hidden: boolean): void => {
     for (const p of byParent.get(parent) ?? []) {
-      out.push({ id: p.id, title: p.title, icon: p.icon, depth, parentId: parent, sortKey: p.sortKey });
-      walk(p.id, depth + 1);
+      const isCollapsed = !!collapsed[p.id];
+      const node: Node = {
+        id: p.id,
+        title: p.title,
+        icon: p.icon,
+        depth,
+        parentId: parent,
+        sortKey: p.sortKey,
+        hasKids: (byParent.get(p.id)?.length ?? 0) > 0,
+        collapsed: isCollapsed,
+      };
+      all.push(node);
+      if (!hidden) visible.push(node);
+      // 折叠后子树整体隐藏；子孙即便自己没被折也继承 hidden 状态
+      walk(p.id, depth + 1, hidden || isCollapsed);
     }
   };
-  walk(null, 0);
-  return out;
+  walk(null, 0, false);
+  return { all, visible };
 }
 
 function subtreeEnd(flat: Node[], start: number): number {
@@ -46,20 +74,35 @@ function subtreeEnd(flat: Node[], start: number): number {
   return end;
 }
 
-function TreeRow({ node }: { node: Node }) {
+function TreeRow({
+  node,
+  onDelete,
+  onToggle,
+}: {
+  node: Node;
+  onDelete: (id: string) => void;
+  onToggle: (id: string) => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
   const onCurrent = location.pathname === `/p/${node.id}`;
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: node.id });
   const addSibling = async (e: MouseEvent): Promise<void> => {
     e.stopPropagation();
     const id = uuidv7();
     await api.createPage({ id, parentId: node.parentId });
+    qc.invalidateQueries({ queryKey: ["tree"] });
     navigate(`/p/${id}`);
+  };
+  const del = (e: MouseEvent): void => {
+    e.stopPropagation();
+    onDelete(node.id);
   };
   return (
     <div
       ref={setNodeRef}
+      data-page-id={node.id}
       style={{
         transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
         transition,
@@ -78,6 +121,34 @@ function TreeRow({ node }: { node: Node }) {
       >
         <Icon name="grip" size={14} />
       </span>
+      {node.hasKids ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(node.id);
+          }}
+          className="tree-toggle"
+          title={node.collapsed ? "展开子页面" : "折叠子页面"}
+          aria-expanded={!node.collapsed}
+          style={{
+            border: "none",
+            background: "none",
+            cursor: "pointer",
+            padding: 0,
+            width: 16,
+            height: 20,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--ink-3)",
+            flexShrink: 0,
+          }}
+        >
+          <Icon name={node.collapsed ? "chevronRight" : "chevronDown"} size={14} />
+        </button>
+      ) : (
+        <span style={{ width: 16, flexShrink: 0 }} />
+      )}
       <div
         onClick={() => navigate(`/p/${node.id}`)}
         className={"nav-item" + (onCurrent ? " active" : "")}
@@ -89,14 +160,37 @@ function TreeRow({ node }: { node: Node }) {
       <button onClick={addSibling} className="icon-btn tree-add" title="新建同级页" style={{ opacity: 0, width: 22, height: 22 }}>
         <Icon name="plus" size={15} />
       </button>
+      <button onClick={del} className="icon-btn tree-del" title="删除页面（可在回收站恢复）" style={{ opacity: 0, width: 22, height: 22 }}>
+        <Icon name="trash" size={15} />
+      </button>
     </div>
   );
 }
 
 export function PageTree({ pages }: { pages: PageMeta[] }) {
   const qc = useQueryClient();
-  const flat = useMemo(() => buildFlat(pages), [pages]);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const collapsed = useTreeStore((s) => s.collapsed);
+  const toggleCollapsed = useTreeStore((s) => s.toggleCollapsed);
+  const expand = useTreeStore((s) => s.expand);
+  const { all: flat, visible } = useMemo(() => buildFlat(pages, collapsed), [pages, collapsed]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  // 删除是软删（进回收站），但子树会一起消失：若当前正看着子树里任何一页，得跳走。
+  // 服务端同时会摘掉父页正文里指向子树的子页面芯片，那些页需要重挂载才看得见变化。
+  const onDelete = (id: string): void => {
+    const idx = flat.findIndex((n) => n.id === id);
+    const doomed = idx < 0 ? [id] : flat.slice(idx, subtreeEnd(flat, idx)).map((n) => n.id);
+    const parent = idx < 0 ? null : flat[idx]!.parentId;
+    void api.deletePage(id).then((res) => {
+      qc.invalidateQueries({ queryKey: ["tree"] });
+      for (const d of doomed) qc.removeQueries({ queryKey: ["doc", d] });
+      void reloadHostDocs(qc, res.hostPageIds ?? []);
+      const current = location.pathname.slice(3).split("/")[0];
+      if (current && doomed.includes(current)) void navigate(parent ? `/p/${parent}` : "/");
+    });
+  };
 
   const onDragEnd = async (e: DragEndEvent): Promise<void> => {
     const { active, over } = e;
@@ -123,6 +217,7 @@ export function PageTree({ pages }: { pages: PageMeta[] }) {
       insertAt = subtreeEnd(withoutMoved, insertAt);
       reindent(moved, targetDepth + 1);
       moved[0]!.parentId = overId;
+      if (overNode.collapsed) expand(overId); // 拖进折叠页后不展开的话，新子页就凭空消失了
     } else {
       // 同父重排：插到 over 之前或之后（看方向），深度不变
       if (aIndex < oIndex) insertAt = subtreeEnd(withoutMoved, insertAt);
@@ -137,9 +232,9 @@ export function PageTree({ pages }: { pages: PageMeta[] }) {
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => void onDragEnd(e)}>
-      <SortableContext items={flat.map((n) => n.id)} strategy={verticalListSortingStrategy}>
-        {flat.map((n) => (
-          <TreeRow key={n.id} node={n} />
+      <SortableContext items={visible.map((n) => n.id)} strategy={verticalListSortingStrategy}>
+        {visible.map((n) => (
+          <TreeRow key={n.id} node={n} onDelete={onDelete} onToggle={toggleCollapsed} />
         ))}
       </SortableContext>
     </DndContext>

@@ -1,11 +1,13 @@
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client.ts";
+import { useUiStore } from "../../lib/uiStore.ts";
 import { EditorHost } from "../../editor/EditorHost.tsx";
 import { PageHeader } from "./PageHeader.tsx";
 
 export function PageRoute() {
   const { pageId = "" } = useParams();
+  const rev = useUiStore((s) => s.docRev[pageId] ?? 0);
   const { data, isLoading, error } = useQuery({
     queryKey: ["doc", pageId],
     queryFn: () => api.getDocument(pageId),
@@ -20,11 +22,11 @@ export function PageRoute() {
   if (error) return <div style={{ padding: 24, color: "var(--danger)" }}>页面加载失败：{String(error)}</div>;
   if (!data) return null;
 
-  // key 强制换页重挂载 → 新 editor 实例（initialContent 只在创建时生效）。
+  // key 换页/外部改动时重挂载 → 新 editor 实例（initialContent 只在创建时生效）。
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "40px 40px 60vh" }}>
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 24px 60vh" }}>
       <PageHeader page={data.page} />
-      <EditorHost key={pageId} page={data.page} initialBlocks={data.blocks} />
+      <EditorHost key={`${pageId}:${rev}`} page={data.page} initialBlocks={data.blocks} initialKeys={data.keys} />
     </div>
   );
 }

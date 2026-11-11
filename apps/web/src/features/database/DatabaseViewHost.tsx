@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client.ts";
 import { Icon } from "../../ui/Icon.tsx";
@@ -15,6 +15,13 @@ export function DatabaseViewHost({ databaseId }: { databaseId: string }) {
   const qc = useQueryClient();
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [titleEditing, setTitleEditing] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  // autoFocus 先于 React 事件生效，onFocus 里 select() 会被浏览器随后重置；进编辑态后再挂载选中。
+  useEffect(() => {
+    if (titleEditing) titleRef.current?.select();
+  }, [titleEditing]);
 
   if (!databaseId) return null;
   if (isLoading) return <div style={{ padding: 12, color: "var(--ink-3)" }}>加载数据库…</div>;
@@ -24,6 +31,13 @@ export function DatabaseViewHost({ databaseId }: { databaseId: string }) {
   if (!activeView) return <div style={{ padding: 12, color: "var(--ink-3)" }}>无视图</div>;
 
   const refetch = () => qc.invalidateQueries({ queryKey: ["db", databaseId] });
+
+  // 库名：点标题进入编辑，失焦/回车提交（避免每敲一字一次请求 + 中文合成期被覆盖）。
+  const saveTitle = (raw: string) => {
+    const title = raw.trim();
+    if (title === data.database.title) return;
+    void api.patchDatabase(databaseId, { title }).then(refetch);
+  };
 
   const saveConfig = (c: ViewConfig) =>
     void api.patchView(activeView.id, { config: c }).then(refetch);
@@ -48,7 +62,37 @@ export function DatabaseViewHost({ databaseId }: { databaseId: string }) {
   return (
     <div style={{ margin: "8px 0", width: "100%", minWidth: 0 }} contentEditable={false} onKeyDown={(e) => e.stopPropagation()}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 8px", flexWrap: "wrap" }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{data.database.title || "未命名数据库"}</span>
+        {titleEditing ? (
+          <input
+            ref={titleRef}
+            autoFocus
+            defaultValue={data.database.title}
+            placeholder="未命名数据库"
+            size={Math.max(10, (data.database.title || "未命名数据库").length + 2)}
+            onBlur={(e) => {
+              setTitleEditing(false);
+              saveTitle(e.currentTarget.value);
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) e.currentTarget.blur();
+              if (e.key === "Escape" && !e.nativeEvent.isComposing) {
+                e.currentTarget.value = data.database.title;
+                e.currentTarget.blur();
+              }
+            }}
+            style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", border: "none", outline: "none", background: "transparent", padding: 0, fontFamily: "inherit", minWidth: 80 }}
+          />
+        ) : (
+          <span
+            className="db-title"
+            title="点击重命名"
+            onClick={() => setTitleEditing(true)}
+            style={{ fontSize: 15, fontWeight: 600, color: data.database.title ? "var(--ink)" : "var(--ink-3)" }}
+          >
+            {data.database.title || "未命名数据库"}
+          </span>
+        )}
         <div style={{ display: "flex", gap: 2, marginLeft: "auto", flexWrap: "wrap", alignItems: "center" }}>
           {data.views.map((v) => (
             <div key={v.id} style={{ position: "relative" }}>

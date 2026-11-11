@@ -137,14 +137,19 @@ body {
   text-transform: none;
 }
 
-/* 树行：hover 才显现拖拽手柄与新建按钮（Notion 式） */
+/* 树行：hover 才显现拖拽手柄、新建与删除按钮（Notion 式） */
 .tree-row .tree-grip,
-.tree-row .tree-add {
+.tree-row .tree-add,
+.tree-row .tree-del {
   transition: opacity 0.1s ease;
 }
 .tree-row:hover .tree-grip,
-.tree-row:hover .tree-add {
+.tree-row:hover .tree-add,
+.tree-row:hover .tree-del {
   opacity: 1 !important;
+}
+.tree-row .tree-del:hover {
+  color: var(--danger) !important;
 }
 
 /* 页面头部：hover 才显现弱操作（添加图标/封面、收藏/删除），贴近 Notion 的克制 */
@@ -174,6 +179,46 @@ body {
 }
 
 /* ── 数据库表格：对齐 Notion ─────────────────────────── */
+/* 删行后的撤销提示：底部居中浮层（Notion 式） */
+.db-undo-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-menu);
+}
+.db-undo-toast button {
+  border: none;
+  background: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* 数据库标题：可点击重命名，hover 给出可编辑暗示（Notion 式） */
+.db-title {
+  cursor: text;
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  margin-left: -4px;
+}
+.db-title:hover {
+  background: var(--bg-hover);
+}
+
 .db-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -181,6 +226,13 @@ body {
   width: 100%;
   min-width: 0;
   background: var(--bg-canvas);
+  /* 表内拖动鼠标会误选中并复制文本 → 整体禁选，仅输入控件放开 */
+  user-select: none;
+}
+.db-card input,
+.db-card textarea,
+.db-card [contenteditable="true"] {
+  user-select: text;
 }
 .db-toolbar-btn {
   display: inline-flex;

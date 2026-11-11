@@ -89,10 +89,6 @@ export function Sidebar() {
         </>
       )}
 
-      <div className="side-section-label">
-        <Icon name="chevronRight" size={12} />
-        页面
-      </div>
       <PageTree pages={data} />
 
       <div style={{ borderTop: "1px solid var(--border)", marginTop: "auto", paddingTop: 6 }}>

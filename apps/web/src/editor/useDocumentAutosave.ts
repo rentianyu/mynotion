@@ -3,6 +3,7 @@ import type { AppBlockNoteEditor } from "../blocks/schema.ts";
 import { seedKeys, settle } from "./diff.ts";
 import type { BnChange } from "./diff.ts";
 import { saveBlocksKeepalive, api } from "../api/client.ts";
+import { queryClient } from "../lib/queryClient.ts";
 
 export type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
@@ -12,7 +13,11 @@ const DEBOUNCE_MS = 500;
  * onChange → getChanges() 累加 → 防抖 flush → PUT。
  * 移动块的重算、缺键补齐都在 settle 内；这里只负责累加与调度。
  */
-export function useDocumentAutosave(editor: AppBlockNoteEditor, pageId: string): SaveStatus {
+export function useDocumentAutosave(
+  editor: AppBlockNoteEditor,
+  pageId: string,
+  initialKeys: Record<string, string>,
+): SaveStatus {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const keys = useRef<Map<string, string>>(new Map());
   const changed = useRef<Set<string>>(new Set());
@@ -20,9 +25,9 @@ export function useDocumentAutosave(editor: AppBlockNoteEditor, pageId: string):
   const deleted = useRef<Set<string>>(new Set());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 加载后播种 sort_key（服务端不下发键，客户端按文档顺序生成一份）。
+  // 加载后播种 sort_key：优先用服务端下发的库内键，缺键的才新生成。
   useEffect(() => {
-    keys.current = seedKeys(editor.document as never);
+    keys.current = seedKeys(editor.document as never, initialKeys);
   }, [editor]);
 
   const flush = (): void => {
@@ -44,9 +49,14 @@ export function useDocumentAutosave(editor: AppBlockNoteEditor, pageId: string):
     deleted.current = new Set();
     if (rows.length === 0 && deletes.length === 0) return;
     setStatus("saving");
+    // 子页面块与树是同一份数据的两个视图：删块会级联软删目标页，存块会复活它，两端都得让树缓存失效。
+    const touchesTree = deletes.length > 0 || rows.some((r) => r.type === "subpage");
     void api
       .saveBlocks(pageId, { upserts: rows, deletes })
-      .then(() => setStatus("saved"))
+      .then(() => {
+        setStatus("saved");
+        if (touchesTree) queryClient.invalidateQueries({ queryKey: ["tree"] });
+      })
       .catch(() => setStatus("error"));
   };
 

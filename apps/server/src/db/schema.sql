@@ -65,3 +65,18 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_fts USING fts5(
   body,
   tokenize = 'trigram'
 );
+
+-- 从侧栏删除子页面时，父页正文里指向它的 subpage 芯片会被摘下来存这里，
+-- 回收站恢复页面时按原 block_id / sort_key 放回原位。
+CREATE TABLE IF NOT EXISTS detached_subpage_blocks (
+  block_id    TEXT PRIMARY KEY,
+  host_page_id TEXT NOT NULL,
+  parent_id   TEXT NOT NULL,
+  ref_page_id TEXT NOT NULL,
+  props       TEXT NOT NULL DEFAULT '{}',
+  content     TEXT NOT NULL DEFAULT '[]',
+  sort_key    TEXT NOT NULL,
+  created_at  INTEGER NOT NULL,
+  detached_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_detached_ref ON detached_subpage_blocks(ref_page_id);

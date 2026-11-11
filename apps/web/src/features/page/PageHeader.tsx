@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client.ts";
+import { reloadHostDocs } from "../../lib/reloadHostDocs.ts";
 import { Icon } from "../../ui/Icon.tsx";
 import type { PageMeta } from "@mynotion/shared";
 
@@ -130,8 +131,9 @@ export function PageHeader({ page }: { page: PageMeta }) {
           <button
             className="icon-btn hover-only"
             onClick={() =>
-              void api.deletePage(page.id).then(() => {
+              void api.deletePage(page.id).then((res) => {
                 qc.invalidateQueries({ queryKey: ["tree"] });
+                void reloadHostDocs(qc, res.hostPageIds ?? []);
                 navigate("/");
               })
             }
