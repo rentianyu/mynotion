@@ -7,6 +7,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { db, sqliteVersion } from "./db.ts";
 import { migrate } from "./db/migrate.ts";
+import { loadToken } from "./lib/token.ts";
+import { authMiddleware, loginRoute } from "./middleware/auth.ts";
 import { pagesRoute } from "./routes/pages.ts";
 import { trashRoute } from "./routes/trash.ts";
 import { searchRoute } from "./routes/search.ts";
@@ -39,6 +41,13 @@ function probeCapabilities() {
 
 const capabilities = probeCapabilities();
 
+// 默认只监听回环；HOST=0.0.0.0（或某个网卡地址）才对外，届时非本机请求必须凭 token。
+const hostname = process.env.HOST ?? "127.0.0.1";
+const token = loadToken();
+
+app.use("*", authMiddleware(token));
+app.get("/login", loginRoute(token));
+
 app.route("/api", pagesRoute);
 app.route("/api", trashRoute);
 app.route("/api", searchRoute);
@@ -69,6 +78,10 @@ if (existsSync(webDist)) {
   console.log(`serving static from ${webDist}`);
 }
 
-serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`server listening on http://127.0.0.1:${info.port}`);
+serve({ fetch: app.fetch, port, hostname }, (info) => {
+  const shown = hostname === "0.0.0.0" || hostname === "::" ? "127.0.0.1" : hostname;
+  console.log(`server listening on http://${shown}:${info.port}`);
+  if (hostname !== "127.0.0.1" && hostname !== "localhost") {
+    console.log(`局域网访问需带凭证：pnpm share`);
+  }
 });
