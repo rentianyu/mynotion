@@ -4,6 +4,20 @@
 
 ▶ **[观看 37 秒演示](docs/assets/demo.mp4)**（文件在 `docs/assets/demo.mp4`，25 MB）
 
+## 界面速览
+
+**左侧页面树、正文里的子页面芯片、页面内嵌的数据库表格**（这张表有 500 行）
+
+![页面树与数据库表格视图](docs/assets/page-and-table.png)
+
+**正文里敲 `/` 唤出的命令菜单**
+
+![斜杠命令菜单](docs/assets/slash-menu.png)
+
+**列的类型与选项就地编辑**（改列名、换类型、加选项和颜色）
+
+![列属性与选项编辑](docs/assets/column-options.png)
+
 ---
 
 ## 它能帮你做什么
