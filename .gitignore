@@ -7,3 +7,6 @@ data/
 *.db-shm
 *.tsbuildinfo
 .DS_Store
+
+# 本地备忘，不随开源仓库分发
+docs/known-issues.md
