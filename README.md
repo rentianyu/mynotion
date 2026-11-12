@@ -108,6 +108,13 @@ pnpm serve        # = pnpm build && pnpm start
 
 前端 dev 端口固定在 `apps/web/vite.config.ts`（`5173`，`host: 127.0.0.1`）。
 
+
+## 局域网访问
+
+| `pnpm share` | 打印访问凭证与各网卡可直接点开的链接 
+
+| `HOST` | `127.0.0.1` | 监听地址；改成 `0.0.0.0` 才对外，届时非本机请求必须带凭证 |
+
 ## 数据与备份
 
 - 整个工作区是 `data/mynotion.db`（+ WAL/SHM 两个附属文件）。**迁移 = 拷贝这个文件**；重装 = 换一个新文件。
