@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client.ts";
+import { flushDocument } from "../../editor/useDocumentAutosave.ts";
 import { reloadHostDocs } from "../../lib/reloadHostDocs.ts";
 import { Icon } from "../../ui/Icon.tsx";
 import type { PageMeta } from "@mynotion/shared";
@@ -114,6 +115,13 @@ export function PageHeader({ page }: { page: PageMeta }) {
           }}
         />
         <div style={{ display: "flex", gap: 2, paddingTop: 8 }}>
+          <button
+            className="icon-btn hover-only"
+            onClick={() => void Promise.resolve(flushDocument(page.id)).then(() => navigate(`/p/${page.id}/print`))}
+            title="导出 PDF"
+          >
+            <Icon name="print" size={18} />
+          </button>
           <button
             className="icon-btn hover-only"
             onClick={() =>

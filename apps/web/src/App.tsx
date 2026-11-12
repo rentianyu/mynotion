@@ -7,6 +7,7 @@ import { Sidebar } from "./features/sidebar/Sidebar.tsx";
 import { PageRoute } from "./features/page/Route.tsx";
 import { TrashPage } from "./features/trash/TrashPage.tsx";
 import { SearchDialog } from "./features/search/SearchDialog.tsx";
+import { PrintRoute } from "./features/export/PrintRoute.tsx";
 
 function Layout() {
   return (
@@ -36,6 +37,8 @@ function SmartRoot() {
 }
 
 const router = createBrowserRouter([
+  // 打印/导出视图在 Layout 之外：不带侧栏与搜索弹窗，打印出来就是正文本身。
+  { path: "/p/:pageId/print", element: <PrintRoute /> },
   {
     element: <Layout />,
     children: [

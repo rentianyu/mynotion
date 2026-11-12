@@ -19,7 +19,8 @@ type IconName =
   | "filter"
   | "sort"
   | "columns"
-  | "settings";
+  | "settings"
+  | "print";
 
 const paths: Record<IconName, ReactNode> = {
   search: <><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>,
@@ -41,6 +42,7 @@ const paths: Record<IconName, ReactNode> = {
   sort: <path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" />,
   columns: <><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M10 4v16M16 4v16" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></>,
+  print: <><path d="M6 9V3h12v6" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="7" /></>,
 };
 
 export function Icon({

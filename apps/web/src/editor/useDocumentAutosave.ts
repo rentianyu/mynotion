@@ -9,6 +9,16 @@ export type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
 const DEBOUNCE_MS = 500;
 
+const flushers = new Map<string, () => Promise<void> | void>();
+
+/**
+ * 导出/打印前调用：把仍在防抖窗口里的编辑立即落库。
+ * 返回 PUT 的 promise，调用方 await 之后读服务端才是最新数据。
+ */
+export function flushDocument(pageId: string): Promise<void> | void {
+  return flushers.get(pageId)?.();
+}
+
 /**
  * onChange → getChanges() 累加 → 防抖 flush → PUT。
  * 移动块的重算、缺键补齐都在 settle 内；这里只负责累加与调度。
@@ -30,7 +40,7 @@ export function useDocumentAutosave(
     keys.current = seedKeys(editor.document as never, initialKeys);
   }, [editor]);
 
-  const flush = (): void => {
+  const flush = (): Promise<void> | void => {
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
@@ -51,7 +61,7 @@ export function useDocumentAutosave(
     setStatus("saving");
     // 子页面块与树是同一份数据的两个视图：删块会级联软删目标页，存块会复活它，两端都得让树缓存失效。
     const touchesTree = deletes.length > 0 || rows.some((r) => r.type === "subpage");
-    void api
+    return api
       .saveBlocks(pageId, { upserts: rows, deletes })
       .then(() => {
         setStatus("saved");
@@ -61,6 +71,7 @@ export function useDocumentAutosave(
   };
 
   useEffect(() => {
+    flushers.set(pageId, flush);
     const unsubscribe = editor.onChange((_ed, ctx) => {
       for (const c of ctx.getChanges() as unknown as BnChange[]) {
         const id = c.block?.id;
@@ -81,7 +92,10 @@ export function useDocumentAutosave(
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(flush, DEBOUNCE_MS);
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (flushers.get(pageId) === flush) flushers.delete(pageId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, pageId]);
 

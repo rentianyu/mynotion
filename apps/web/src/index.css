@@ -310,3 +310,216 @@ body {
 .menu-item:hover {
   background: var(--bg-hover);
 }
+
+/* ── 导出 PDF：打印视图 ──────────────────────────────── */
+/* 屏幕上就是一张 A4 感的纸；@media print 段负责真正出纸时的分页与去 chrome。 */
+.print-root {
+  min-height: 100%;
+  background: var(--bg-canvas);
+  color: var(--ink);
+}
+.print-note {
+  padding: 32px;
+  color: var(--ink-3);
+}
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.print-toolbar button {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-menu);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.print-sheet {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.print-page-icon {
+  font-size: 64px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.print-title {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 20px;
+}
+.print-h {
+  font-weight: 600;
+  margin: 22px 0 8px;
+  break-after: avoid;
+}
+h2.print-h {
+  font-size: 24px;
+}
+h3.print-h {
+  font-size: 19px;
+}
+h4.print-h {
+  font-size: 16px;
+}
+.print-p {
+  margin: 6px 0;
+}
+.print-quote {
+  margin: 10px 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--ink-2);
+}
+.print-callout {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.print-callout-icon {
+  font-size: 18px;
+  line-height: 1.4;
+}
+.print-code {
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.print-p code,
+.print-table code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  background: var(--bg-subtle);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+}
+.print-hr {
+  border: none;
+  border-top: 1px solid var(--border-strong);
+  margin: 18px 0;
+}
+.print-figure {
+  margin: 14px 0;
+}
+.print-img {
+  max-width: 100%;
+}
+.print-caption {
+  font-size: 13px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+.print-subpage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+}
+.print-db {
+  margin: 16px 0;
+}
+.print-db-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  break-after: avoid;
+}
+.print-empty {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.print-table th,
+.print-table td {
+  border: 1px solid var(--border-strong);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.print-table th {
+  font-weight: 600;
+  background: var(--bg-subtle);
+}
+.print-bn-table td,
+.print-bn-table th {
+  min-width: 60px;
+}
+.print-table a {
+  color: var(--accent);
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+  html,
+  body,
+  #root {
+    height: auto;
+  }
+  .print-toolbar {
+    display: none !important;
+  }
+  .print-sheet {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  /* 默认浏览器不打印背景与彩色标签：强制保留，否则筛选态的 select 标签会变白块。 */
+  .print-root,
+  .print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* 长表必须跨页：只保证行不被腰斩，表头每页重复。 */
+  thead {
+    display: table-header-group;
+  }
+  tr,
+  li,
+  figure,
+  .print-callout,
+  .print-code {
+    break-inside: avoid;
+  }
+  .print-title {
+    break-after: avoid;
+  }
+  a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+}
