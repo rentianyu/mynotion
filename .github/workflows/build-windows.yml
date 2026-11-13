@@ -79,3 +79,66 @@ jobs:
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/mynotion.exe
+
+  # 安装包在干净 runner 上静默安装 → 启动 → 验证后端真的起来了。
+  install-test:
+    needs: windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mynotion-windows
+          path: dist
+
+      - name: List artifacts
+        shell: pwsh
+        run: Get-ChildItem -Recurse dist | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Silent install
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist -Recurse -Filter "*-setup.exe" | Select-Object -First 1
+          if (-not $setup) { throw "产物里没有 setup.exe" }
+          Write-Host "安装：$($setup.FullName) ($([math]::Round($setup.Length/1MB,2)) MB)"
+          $proc = Start-Process -FilePath $setup.FullName -ArgumentList "/S" -PassThru -Wait
+          Write-Host "安装退出码：$($proc.ExitCode)"
+          $app = $null
+          foreach ($c in @("$env:LOCALAPPDATA\Programs\MyNotion", "$env:LOCALAPPDATA\MyNotion", "${env:ProgramFiles}\MyNotion")) {
+            if (Test-Path (Join-Path $c 'mynotion.exe')) { $app = Join-Path $c 'mynotion.exe'; break }
+          }
+          if (-not $app) {
+            $found = Get-ChildItem $env:LOCALAPPDATA -Recurse -Filter mynotion.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $app = $found.FullName }
+          }
+          if (-not $app) { throw "安装后找不到 mynotion.exe" }
+          Write-Host "APP: $app"
+          Get-ChildItem -Recurse (Split-Path $app) | Select-Object FullName, Length | Format-Table -AutoSize
+          "APP=$app" | Add-Content -Path $env:GITHUB_ENV
+
+      - name: Launch and verify backend
+        shell: pwsh
+        run: |
+          Remove-Item "$env:APPDATA\MyNotion" -Recurse -Force -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath $env:APP -PassThru
+          $log = "$env:APPDATA\MyNotion\logs\server.log"
+          $port = $null
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Milliseconds 500
+            if ($p.HasExited) { throw "应用启动即退出，exit=$($p.ExitCode)" }
+            if (Test-Path $log) {
+              $m = Select-String -Path $log -Pattern "listening on http://127\.0\.0\.1:(\d+)" | Select-Object -First 1
+              if ($m) { $port = $m.Matches[0].Groups[1].Value; break }
+            }
+          }
+          if (-not $port) { Write-Host (Get-Content $log -ErrorAction SilentlyContinue); throw "后端未在 30s 内监听" }
+          Write-Host "PORT=$port"
+          $h = Invoke-WebRequest "http://127.0.0.1:$port/api/health" -UseBasicParsing
+          Write-Host "HEALTH: $($h.Content)"
+          $idx = Invoke-WebRequest "http://127.0.0.1:$port/" -UseBasicParsing
+          Write-Host "INDEX: $($idx.StatusCode) bytes=$($idx.Content.Length)"
+          Get-Process | Where-Object { $_.ProcessName -match 'mynotion' } | Select-Object Id, ProcessName | Format-Table -AutoSize
+          Get-Process mynotion -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 2
+          Get-Process mynotion-server -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $h.Content.Contains('"ok":true')) { throw "health 异常" }
+          if ($idx.StatusCode -ne 200) { throw "首页异常" }
