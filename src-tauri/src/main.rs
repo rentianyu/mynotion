@@ -158,8 +158,15 @@ fn boot(handle: tauri::AppHandle) {
 
     if wait_ready(port, Duration::from_secs(30)) {
         if let Some(win) = handle.get_webview_window("main") {
-            // 用 location.replace 而不是 window.navigate：跨到 http:// 后不再回退到启动页。
-            let _ = win.eval(&format!("window.location.replace('http://127.0.0.1:{port}/')"));
+            let target = format!("http://127.0.0.1:{port}/");
+            // 首选官方 navigate（WebView 层直接换 URL），失败再退回页面内跳转。
+            let navigated = tauri::Url::parse(&target)
+                .ok()
+                .map(|url| win.navigate(url).is_ok())
+                .unwrap_or(false);
+            if !navigated {
+                let _ = win.eval(&format!("window.location.replace('{target}')"));
+            }
         }
     } else {
         show_error(
