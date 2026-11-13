@@ -4,7 +4,17 @@
 
 ## 装什么
 
-下载 `MyNotion_1.0.0_x64-setup.exe`，双击安装（当前用户安装，不需要管理员）。首次启动会显示启动页，等后端就绪后自动切到应用界面。
+| 产物 | 用途 |
+| --- | --- |
+| `MyNotion_1.0.0_x64-setup.exe` | 安装版，双击安装（当前用户，不需要管理员），出现快捷方式 |
+| `MyNotion_1.0.0_portable.zip` | 便携版，解压后直接双击 `mynotion.exe`，不写注册表 |
+
+下载渠道：
+
+- GitHub Releases：`https://github.com/rentianyu/mynotion/releases/latest`
+- 国内镜像（只有安装版）：`https://f.xbta.cc/mynotion/MyNotion_1.0.0_x64-setup.exe`
+
+首次启动会显示启动页，等后端就绪后自动切到应用界面。
 
 | 项目 | 位置 |
 | --- | --- |

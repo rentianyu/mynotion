@@ -130,6 +130,8 @@ jobs:
         shell: pwsh
         run: |
           Remove-Item "$env:APPDATA\MyNotion" -Recurse -Force -ErrorAction SilentlyContinue
+          # 让 WebView2 开 CDP，用来确认窗口真的导航到了后端地址
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9333"
           $p = Start-Process -FilePath $env:APP -PassThru
           $log = "$env:APPDATA\MyNotion\logs\server.log"
           $port = $null
@@ -147,6 +149,22 @@ jobs:
           Write-Host "HEALTH: $($h.Content)"
           $idx = Invoke-WebRequest "http://127.0.0.1:$port/" -UseBasicParsing
           Write-Host "INDEX: $($idx.StatusCode) bytes=$($idx.Content.Length)"
+          $hit = $null
+          for ($i = 0; $i -lt 20; $i++) {
+            Start-Sleep -Milliseconds 500
+            try {
+              $tabs = Invoke-RestMethod "http://127.0.0.1:9333/json/list" -TimeoutSec 2
+              $hit = $tabs | Where-Object { $_.url -like "http://127.0.0.1:*" } | Select-Object -First 1
+              if ($hit) { break }
+            } catch { }
+          }
+          if ($hit) {
+            Write-Host "WINDOW_URL: $($hit.url)"
+            Write-Host "WINDOW_TITLE: $($hit.title)"
+            if (-not ($hit.url -like "http://127.0.0.1:$port*")) { throw "窗口 URL 不是后端地址：$($hit.url)" }
+          } else {
+            Write-Host "CDP 未连上，跳过窗口导航断言"
+          }
           Get-Process | Where-Object { $_.ProcessName -match 'mynotion' } | Select-Object Id, ProcessName | Format-Table -AutoSize
           Get-Process mynotion -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep -Seconds 2
