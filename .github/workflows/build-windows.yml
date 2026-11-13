@@ -52,43 +52,7 @@ jobs:
 
       - name: Smoke test backend on Windows
         shell: pwsh
-        run: |
-          $root = $PWD
-          $env:WEB_DIST = "$root\src-tauri\web"
-          $env:HOST = "127.0.0.1"
-
-          function Test-Backend([string]$label, [string]$file, [string[]]$argv, [int]$port) {
-            Write-Host "======== $label ========"
-            $out = "$root\.smoke-$port.out"
-            $err = "$root\.smoke-$port.err"
-            $env:PORT = "$port"
-            $env:DATA_DIR = "$root\.smoke-data-$port"
-            $args = @{}
-            if ($argv.Count -gt 0) { $args['ArgumentList'] = $argv }
-            $p = Start-Process -FilePath $file -PassThru -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err @args
-            $ok = $false
-            for ($i = 0; $i -lt 20; $i++) {
-              Start-Sleep -Milliseconds 800
-              if ($p.HasExited) { Write-Host "EXITED code=$($p.ExitCode)"; break }
-              try {
-                $r = Invoke-WebRequest "http://127.0.0.1:$port/api/health" -UseBasicParsing -TimeoutSec 2
-                if ($r.StatusCode -eq 200) { Write-Host "HEALTH: $($r.Content)"; $ok = $true; break }
-              } catch {}
-            }
-            if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
-            foreach ($f in @($err, $out)) {
-              if ((Test-Path $f) -and ((Get-Item $f).Length -gt 0)) { Write-Host "--- $f ---"; Get-Content $f -TotalCount 40 }
-            }
-            return $ok
-          }
-
-          Write-Host "server.exe size: $((Get-Item 'src-tauri\bin\mynotion-server.exe').Length)"
-          $node = (Get-Command node).Source
-          $a = Test-Backend "A: node + server.cjs" $node @(".stage\server.cjs") 18891
-          $b = Test-Backend "B: SEA exe" "src-tauri\bin\mynotion-server.exe" @() 18892
-
-          if (-not $a) { throw "A 失败：后端 bundle 在 Windows 上跑不起来（与 SEA 无关）" }
-          if (-not $b) { throw "B 失败：SEA 注入后的 exe 无法提供服务" }
+        run: node tools/smoke.mjs --exe src-tauri/bin/mynotion-server.exe
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
