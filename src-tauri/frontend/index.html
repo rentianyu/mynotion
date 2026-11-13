@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyNotion</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfbfa;
+        --fg: #1f1f1f;
+        --muted: #8b8b86;
+        --line: #e7e7e3;
+        --accent: #2f6feb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #191919;
+          --fg: #ededeb;
+          --muted: #8f8f8a;
+          --line: #2c2c2c;
+          --accent: #6f9dff;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+      }
+      main { text-align: center; padding: 24px; max-width: 520px; }
+      .logo {
+        width: 56px; height: 56px; margin: 0 auto 18px;
+        border: 2px solid var(--fg); border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 30px; font-weight: 700; letter-spacing: -1px;
+      }
+      h1 { font-size: 18px; font-weight: 600; margin: 0 0 6px; letter-spacing: 0.2px; }
+      .sub { color: var(--muted); font-size: 13px; margin: 0; }
+      .bar {
+        width: 160px; height: 3px; margin: 22px auto 0;
+        background: var(--line); border-radius: 2px; overflow: hidden;
+      }
+      .bar i {
+        display: block; width: 40%; height: 100%; border-radius: 2px;
+        background: var(--accent); animation: slide 1.1s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(350%); }
+      }
+      #error {
+        display: none; margin-top: 20px; padding: 14px 16px; text-align: left;
+        border: 1px solid #d9534f55; border-radius: 10px; color: #c9302c;
+        background: #d9534f10; font-size: 13px; white-space: pre-wrap; word-break: break-word;
+      }
+      .hint { margin-top: 26px; color: var(--muted); font-size: 12px; }
+      .hint code { font-family: ui-monospace, Consolas, monospace; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="logo">N</div>
+      <h1>MyNotion</h1>
+      <p class="sub" id="sub">正在启动本地服务…</p>
+      <div class="bar" id="bar"><i></i></div>
+      <div id="error"></div>
+      <p class="hint" id="hint">数据保存位置：<code>%APPDATA%\MyNotion</code></p>
+    </main>
+    <script>
+      window.__mynotionError = function (message) {
+        document.getElementById("sub").textContent = "启动失败";
+        document.getElementById("bar").style.display = "none";
+        var box = document.getElementById("error");
+        box.textContent = message;
+        box.style.display = "block";
+        document.getElementById("hint").innerHTML =
+          '日志文件：<code>%APPDATA%\\MyNotion\\logs\\server.log</code>';
+      };
+    </script>
+  </body>
+</html>

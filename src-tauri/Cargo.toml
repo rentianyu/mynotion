@@ -1,0 +1,21 @@
+[package]
+name = "mynotion"
+version = "1.0.0"
+description = "MyNotion 桌面版：装在自己电脑上、数据只有一个文件的 Notion"
+authors = ["MyNotion contributors"]
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-single-instance = "2"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

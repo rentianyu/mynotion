@@ -6,9 +6,17 @@ import { all, db, run, tx } from "../db.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * 打包成单文件 exe（Node SEA）后没有 schema.sql 可读：打包脚本会把 DDL 文本注入到
+ * globalThis.__MYNOTION_SCHEMA_SQL__，这里优先用它，源码直跑时回退到读文件。
+ */
+function schemaDdl(): string {
+  const embedded = (globalThis as { __MYNOTION_SCHEMA_SQL__?: string }).__MYNOTION_SCHEMA_SQL__;
+  return embedded ?? readFileSync(path.join(here, "schema.sql"), "utf8");
+}
+
 export function migrate(): void {
-  const ddl = readFileSync(path.join(here, "schema.sql"), "utf8");
-  db.exec(ddl);
+  db.exec(schemaDdl());
   renumberCollidingBlockKeys();
 }
 

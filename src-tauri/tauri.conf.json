@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MyNotion",
+  "version": "1.0.0",
+  "identifier": "cc.xbta.mynotion",
+  "build": {
+    "frontendDist": "frontend"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "MyNotion",
+        "width": 1360,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 560,
+        "resizable": true,
+        "center": true,
+        "url": "index.html",
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "resources": ["bin/mynotion-server.exe", "web"],
+    "shortDescription": "本地化的 Notion，数据只有一个文件",
+    "longDescription": "MyNotion 桌面版：页面、子页、数据库表格、中文全文搜索都在本机运行，笔记存在一个 SQLite 文件里，离线可用、无需账号。",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}

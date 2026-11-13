@@ -1,11 +1,12 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-
-export const DATA_DIR = path.resolve(here, "..", "..", "..", "data");
+// 桌面壳（Tauri）里 exe 旁边没有仓库目录结构：数据目录由 DATA_DIR 显式指定，
+// 裸跑（仓库根目录执行）时仍等价于 <仓库根>/data。
+export const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.resolve(process.cwd(), "data");
 export const DB_PATH = process.env.DATA_FILE ?? path.join(DATA_DIR, "mynotion.db");
 
 mkdirSync(DATA_DIR, { recursive: true });

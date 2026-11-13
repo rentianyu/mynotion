@@ -67,7 +67,10 @@ const port = Number(process.env.PORT ?? 8791);
 // 生产单进程：vite build 后用 serveStatic 托管前端产物，同源无 CORS。
 // dev 期 apps/web/dist 不存在 → 跳过，前端由 vite dev server 提供。
 const here = path.dirname(fileURLToPath(import.meta.url));
-const webDist = path.resolve(here, "../../web/dist");
+// 桌面壳（Tauri）打包后没有源码目录结构，前端产物位置由 WEB_DIST 显式指定。
+const webDist = process.env.WEB_DIST
+  ? path.resolve(process.env.WEB_DIST)
+  : path.resolve(here, "../../web/dist");
 if (existsSync(webDist)) {
   app.use("*", serveStatic({ root: webDist }));
   app.get("*", (c) => {

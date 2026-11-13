@@ -8,5 +8,11 @@ data/
 *.tsbuildinfo
 .DS_Store
 
+# 桌面版（Tauri）构建中间产物
+.stage/
+src-tauri/target/
+src-tauri/bin/
+src-tauri/web/
+
 # 本地备忘，不随开源仓库分发
 docs/known-issues.md
