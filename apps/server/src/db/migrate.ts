@@ -4,15 +4,16 @@ import { fileURLToPath } from "node:url";
 import { generateKeyBetween } from "fractional-indexing";
 import { all, db, run, tx } from "../db.ts";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-
 /**
  * 打包成单文件 exe（Node SEA）后没有 schema.sql 可读：打包脚本会把 DDL 文本注入到
  * globalThis.__MYNOTION_SCHEMA_SQL__，这里优先用它，源码直跑时回退到读文件。
+ * 注意 fileURLToPath 必须放在函数里：Windows 的 file URL 需要盘符，打包态 URL 不合法。
  */
 function schemaDdl(): string {
   const embedded = (globalThis as { __MYNOTION_SCHEMA_SQL__?: string }).__MYNOTION_SCHEMA_SQL__;
-  return embedded ?? readFileSync(path.join(here, "schema.sql"), "utf8");
+  if (embedded) return embedded;
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  return readFileSync(path.join(here, "schema.sql"), "utf8");
 }
 
 export function migrate(): void {

@@ -66,11 +66,17 @@ const port = Number(process.env.PORT ?? 8791);
 
 // 生产单进程：vite build 后用 serveStatic 托管前端产物，同源无 CORS。
 // dev 期 apps/web/dist 不存在 → 跳过，前端由 vite dev server 提供。
-const here = path.dirname(fileURLToPath(import.meta.url));
-// 桌面壳（Tauri）打包后没有源码目录结构，前端产物位置由 WEB_DIST 显式指定。
-const webDist = process.env.WEB_DIST
-  ? path.resolve(process.env.WEB_DIST)
-  : path.resolve(here, "../../web/dist");
+// 打包成单文件 exe 后没有可信的 import.meta.url（Windows 下 file:/// 无盘符会抛
+// ERR_INVALID_FILE_URL_PATH），所以桌面壳一律用 WEB_DIST 指定；这里的兜底只服务源码直跑。
+const webDist = process.env.WEB_DIST ? path.resolve(process.env.WEB_DIST) : resolveSourceWebDist();
+
+function resolveSourceWebDist(): string {
+  try {
+    return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../web/dist");
+  } catch {
+    return path.resolve(process.cwd(), "apps/web/dist");
+  }
+}
 if (existsSync(webDist)) {
   app.use("*", serveStatic({ root: webDist }));
   app.get("*", (c) => {
